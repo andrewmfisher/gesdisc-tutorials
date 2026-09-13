@@ -8,6 +8,15 @@ import xarray as xr
 from access_with_kerchunk import get_vds
 from access_with_opendap import get_opendap
 from access_with_GiC import get_GiC
+from pydap.net import create_session
+import opendap_input_params()
+
+def main(short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max):
+
+    #passing user input opendap data variables into main from the opendap_input_params function
+    print("Starting main script for benchmarking different data access methods for {short_name} version {version} from" \
+    "{start_date} to {end_date} for a bounding box of ({lat_min}, {lat_max}, {lon_min}, {lon_max})"
+    .format(short_name=short_name, version=version, start_date=start_date, end_date=end_date, lat_min=lat_min, lat_max=lat_max, lon_min=lon_min, lon_max=lon_max))
 
 if __name__ == "__main__":
     
@@ -15,6 +24,9 @@ if __name__ == "__main__":
 
     auth = earthaccess.login()
 
+    #setting and calling variables for opendap data access (from user input) passed from the opendap_input_params function
+    short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max = opendap_input_params() #set variables
+    main(short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max) #calling variables from def(main)
     # Load functions from separate function files
 
     # Call each to get data for the domain of interest
@@ -32,8 +44,6 @@ if __name__ == "__main__":
     print(vds_concat)
 
     # opendap -----------------------------------------------------------
-
-    data = get_opendap()
 
     # Cloud Giovanni time series ----------------------------------------
 
