@@ -164,3 +164,4 @@ cython_debug/
 *.nc4
 *hdf5
 
+.vscode/
