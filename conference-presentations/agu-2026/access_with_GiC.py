@@ -23,7 +23,7 @@ def get_GiC():
     data = 1
 
 
-#     Dataset: NLDAS_FORA0125_H, version 2.0
+# Dataset: NLDAS_FORA0125_H, version 2.0
 
 # Location:
 # Latitude: 38.9517
@@ -49,6 +49,6 @@ def get_GiC():
 
 # https://api.giovanni.earthdata.nasa.gov/timeseries?data=NLDAS_FORA0125_H_2_0_Rainf&location=[38.9517,-92.3341]&time=2024-01-01T00:00:00/2024-01-10T23:00:00&version=2.0
 
-curl -H "authorization:Bearer ${bearer_token}" -X --url "https://api.giovanni.earthdata.nasa.gov/timeseries?data=NLDAS_FORA0125_H_2_0_Rainf&location=[38.9517,-92.3341]&time=2024-01-01T00:00:00/2024-01-10T23:00:00&version=2.0" -o "test.csv"
+# curl -H "authorization:Bearer ${bearer_token}" -X --url "https://api.giovanni.earthdata.nasa.gov/timeseries?data=NLDAS_FORA0125_H_2_0_Rainf&location=[38.9517,-92.3341]&time=2024-01-01T00:00:00/2024-01-10T23:00:00&version=2.0" -o "test.csv"
 
 

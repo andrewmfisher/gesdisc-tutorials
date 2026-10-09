@@ -29,6 +29,8 @@ def main():
     return ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax
 
 if __name__ == "__main__":
+
+    ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax = main()
     
     # Authenticate with earthaccess
 
@@ -42,8 +44,8 @@ if __name__ == "__main__":
 
     # Read in kerchunk files of IMERG data (one year each) and concatenate them
     # Refine this so it can load multiple years with one function...
-    vds2010 = get_vds("https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/GPM_3IMERGDF.07/2010.parq", auth = auth)
-    vds2011 = get_vds("https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/GPM_3IMERGDF.07/2011.parq", auth = auth)
+    vds2010 = get_vds("https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/{}.{}/2010.parq".format(ShortName, Version), auth = auth)
+    vds2011 = get_vds("https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/{}.{}/2011.parq".format(ShortName, Version), auth = auth)
 
     vds_concat = xr.concat([vds2010, vds2011], dim="time")
     vds_concat.attrs["BeginDate"] = str(vds_concat.time.min().dt.date.values)
@@ -51,10 +53,12 @@ if __name__ == "__main__":
     print(vds_concat)
 
     # opendap -----------------------------------------------------------
+    opendap2025July = get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax)
+    print(opendap2025July)
 
     # Cloud Giovanni time series ----------------------------------------
 
-    data = get_GiC()
+    #data = get_GiC()
 
     # Track computational demands for each method
 
