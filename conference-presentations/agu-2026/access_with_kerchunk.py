@@ -11,7 +11,7 @@ import earthaccess
 import xarray as xr
 
 # Create virtual dataset loader function (from Chris B's How To)
-def get_vds(parq: str, auth, chunks: dict={}, **kwargs):
+def get_vds(parq: str, auth, chunks: dict={}, **kwargs): #also pass in: ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax
     """
     Args:
         parq (str): The URL or path to the Kerchunk .parq file.

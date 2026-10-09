@@ -1,22 +1,32 @@
 # Main script for benchmarking data access methods
 #
 # 8/31/2026 JRS
+# 10/9/2026 ALM
 # Methods are defined in separate files
 
 import earthaccess
 import xarray as xr
 from access_with_kerchunk import get_vds
 from access_with_opendap import get_opendap
-from access_with_GiC import get_GiC
+#from access_with_GiC import get_GiC
 from pydap.net import create_session
-import opendap_input_params()
 
-def main(short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max):
+def main():
 
-    #passing user input opendap data variables into main from the opendap_input_params function
-    print("Starting main script for benchmarking different data access methods for {short_name} version {version} from" \
-    "{start_date} to {end_date} for a bounding box of ({lat_min}, {lat_max}, {lon_min}, {lon_max})"
-    .format(short_name=short_name, version=version, start_date=start_date, end_date=end_date, lat_min=lat_min, lat_max=lat_max, lon_min=lon_min, lon_max=lon_max))
+    #input parameters (will stay fixed)
+    ShortName = "GPM_3IMERGDF"
+    Version = "07"
+    BeginDate = "2025-07-01"
+    EndDate = "2025-07-31"
+    LatMin = 29.78140
+    LatMax = 30.29064
+    LonMin = -99.85886
+    LonMax = -98.91769
+
+    #function start statement
+    print("Starting main script for benchmarking different data access methods for {} version {} from" "{} to {} for a bounding box of ({}, {}, {}, {})".format(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax))
+
+    return ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax
 
 if __name__ == "__main__":
     
@@ -24,9 +34,6 @@ if __name__ == "__main__":
 
     auth = earthaccess.login()
 
-    #setting and calling variables for opendap data access (from user input) passed from the opendap_input_params function
-    short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max = opendap_input_params() #set variables
-    main(short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max) #calling variables from def(main)
     # Load functions from separate function files
 
     # Call each to get data for the domain of interest

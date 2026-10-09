@@ -10,22 +10,9 @@ import xarray as xr
 import earthaccess
 from pydap.net import create_session
 
-def opendap_input_params():
-    #Prompts for user input for data access parameters with openday in the get_opendap function (called by main.py)
-    short_name = input("Enter the short name of the dataset (e.g., GPM_3IMERGDF): ")
-    version = input("Enter the version of the dataset (e.g., 07): ")
-    start_date = input("Enter the start date (YYYY-MM-DD): ")
-    end_date = input("Enter the end date (YYYY-MM-DD): ")
-    lat_min = float(input("Enter the minimum latitude in DD: "))
-    lat_max = float(input("Enter the maximum latitude in DD: "))
-    lon_min = float(input("Enter the minimum longitude in DD: "))
-    lon_max = float(input("Enter the maximum longitude in DD: "))
-
-    return short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max
-
 
 # Create virtual dataset loader function (from Chris B's How To)
-def get_opendap(short_name, version, start_date, end_date, lat_min, lat_max, lon_min, lon_max):
+def get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax):
     """
     Args:
         inputs:
@@ -34,10 +21,10 @@ def get_opendap(short_name, version, start_date, end_date, lat_min, lat_max, lon
 
     # Create search query for 1980-01-01 Cloud OPeNDAP URL
     results = earthaccess.search_data(
-        short_name = str(short_name),
-        version=str(version),
-        temporal=(start_date, end_date), # This will stream one granule, but can be edited for a longer temporal extent
-        bounding_box=(lon_min, lat_min, lon_max, lat_max)
+        short_name = str(ShortName),
+        version=str(Version),
+        temporal=(BeginDate, EndDate), # This will stream one granule, but can be edited for a longer temporal extent
+        bounding_box=(LonMin, LatMin, LonMax, LatMax)
     )
 
     # Parse out URL from request, add to OPeNDAP URLs list for querying multiple granules with constraint expressions
@@ -74,11 +61,11 @@ def get_opendap(short_name, version, start_date, end_date, lat_min, lat_max, lon
         raise
 
     # Define latitude and longitude bounds for CONUS
-    lat_min, lat_max = 29.78140, 30.29064  # Latitude bounds
-    lon_min, lon_max = -99.85886, -98.91769  # Longitude bounds
+    #LatMin, LatMax = 29.78140, 30.29064  # Latitude bounds
+    #LonMin, LonMax = -99.85886, -98.91769  # Longitude bounds
 
     # Subset the dataset based on lat/lon bounds, which is performed server-side
-    ds_conus = ds.sel(lat=slice(lat_min, lat_max), lon=slice(lon_min, lon_max))
+    ds_conus = ds.sel(lat=slice(LatMin, LatMax), lon=slice(LonMin, LonMax))
 
     return ds_conus
 
