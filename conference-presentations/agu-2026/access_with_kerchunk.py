@@ -16,6 +16,8 @@ def get_vds(parq: str, bearer_token: str, bbox, subvar, chunks: dict={}, **kwarg
         parq (str): The URL or path to the Kerchunk .parq file.
         bearer_token
         auth =  earthaccess.login() # output of earthaccess.login()
+        bbox = bounding box for subset, bbox = [LonMin, LatMin, LonMax, LatMax]
+        subvar = variable name for subset
         chunks (dict, optional): Chunking scheme for the dataset. Defaults to {}.
         **kwargs: Additional keyword arguments to pass directly to xarray.open_dataset()
 
@@ -53,7 +55,17 @@ def get_vds(parq: str, bearer_token: str, bbox, subvar, chunks: dict={}, **kwarg
     return ds_sub
 
 def get_vds_multiyear(bearer_token, shortname, version, beginyear, endyear, bbox, subvar):
-    
+    """
+    Args:
+        bearer_token
+        shortname
+        version
+        beginyear
+        endyear
+        bbox
+        subvar
+    """
+
     vds_url = f"https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/{shortname}.{version}"
 
     # Lazy load GPM IMERG data from virtual data store, one year at a time

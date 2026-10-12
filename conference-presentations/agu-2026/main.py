@@ -5,8 +5,9 @@
 # Methods are defined in separate files
 
 import access_with_kerchunk as vds
-# import access_with_opendap as opendap
+import access_with_opendap as opendap
 import earthaccess
+from datetime import datetime
 
 # from datetime import datetime
 
@@ -24,7 +25,7 @@ import earthaccess
 def main():
 
     # input parameters (will stay fixed)
-    ShortName = "GPM_3IMERGDF"
+    shortname = "GPM_3IMERGDF"
     Version = "07"
     
     LatMin = 24
@@ -33,28 +34,32 @@ def main():
     LonMax = -93
     bbox = [LonMin, LatMin, LonMax, LatMax]
 
-    beginyear = 2024
-    endyear = 2025
+    begin_dt = datetime.strptime("2024-01-01", "%Y-%m-%d")
+    end_dt = datetime.strptime("2024-01-02", "%Y-%m-%d")
+    beginyear = begin_dt.year
+    endyear = end_dt.year
 
     #function start statement
     print(
         "Starting main script for benchmarking different data access methods for {} version {} from" "{} to {} for a bounding box of ({}, {}, {}, {})".format(
-        ShortName, Version, beginyear, endyear, LatMin, LatMax, LonMin, LonMax)
+        shortname, Version, begin_dt, end_dt, LatMin, LatMax, LonMin, LonMax)
         )
 
     # get bearer token for EDL authentication (once)
     auth = earthaccess.login(strategy="netrc")
     bearer_token = auth.token["access_token"]
+    # opendap uses session cookies, rather than a bearer token
+    opendap_session = earthaccess.get_requests_https_session()
     
-    precip_imerg_vds = vds.get_vds_multiyear(bearer_token, ShortName, Version, beginyear, endyear, bbox, subvar = "precipitation")
+    #precip_imerg_vds = vds.get_vds_multiyear(bearer_token, shortname, Version, beginyear, endyear, bbox, subvar = "precipitation")
+    #print(precip_imerg_vds) # confirm that the data have been (lazily) loaded
 
-    print(precip_imerg_vds) # confirm that the data have been (lazily) loaded
-
-
+    precip_imerg_opendap = opendap.get_opendap(opendap_session, shortname, Version, begin_dt, end_dt, bbox, subvar = "precipitation")
+    print(precip_imerg_opendap) # confirm that the data have been (lazily) loaded
 
 
     # opendap -----------------------------------------------------------
-    # opendap2025July = get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax)
+    # opendap2025July = get_opendap(shortname, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax)
     # print(opendap2025July)
 
     # precip_imerg_opendap = subset_opendap(begindate, enddate, bbox)

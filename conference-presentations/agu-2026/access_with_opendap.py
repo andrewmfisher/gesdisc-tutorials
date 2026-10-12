@@ -3,28 +3,28 @@ Stream data from Cloud opendap with pydap
 
 Date: 8/31/2026
 Author: Jacob Schaperow
-Last Update: ALM, Sept 13, 2026 @ 11:20AM
+Last Update: JRS, Oct. 12, 2026
 Environment: nasa-gesdisc-opendap
 """
 import xarray as xr
 import earthaccess
-from pydap.net import create_session
+# from pydap.net import create_session
 
-
-# Create virtual dataset loader function (from Chris B's How To)
-def get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax):
+# Create virtual dataset loader function (based on Chris B's How To)
+def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar):
     """
     Args:
         inputs:
+        session = opendap session (authentication cookies)
 
     """
 
-    # Create search query for 1980-01-01 Cloud OPeNDAP URL
+    # Create search query for Cloud OPeNDAP URLs
     results = earthaccess.search_data(
-        short_name = str(ShortName),
-        version=str(Version),
-        temporal=(BeginDate, EndDate), # This will stream one granule, but can be edited for a longer temporal extent
-        bounding_box=(LonMin, LatMin, LonMax, LatMax)
+        short_name = str(shortname),
+        version=str(version),
+        temporal=(BeginDate, EndDate),
+        bounding_box=tuple(bbox)
     )
 
     # Parse out URL from request, add to OPeNDAP URLs list for querying multiple granules with constraint expressions
@@ -35,41 +35,37 @@ def get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, 
                 # Extract OPeNDAP URL, replace 
                 url = urls['URL'].replace('https', 'dap4')
 
-                # Subset T2M, lat, lon, and time
+                # Subset desired variables, along with lat, lon, and time
                 # To view all variables, comment out these two lines
-                ce = "?dap4.ce=/{}%3B/{}%3B/{}%3B/{}".format("precipitation", "lat", "lon", "time")
+                ce = "?dap4.ce=/{}%3B/{}%3B/{}%3B/{}".format(subvar, "lat", "lon", "time")
                 url = url + ce
 
                 # Add URL to list
                 opendap_urls.append(url)
 
+    print("created list of Opendap URLs")
 
     #authentication using earthaccess
-    auth = earthaccess.login()
-    token = earthaccess.get_edl_token()['access_token']
-    my_session = create_session(session_kwargs={"token": token})
+    # auth = earthaccess.login()
+    # token = earthaccess.get_edl_token()['access_token']
+    # my_session = create_session(session_kwargs={"token": token})
+
+    # May want to use open_dataset instead of open_mfdataset to avoid overloading opendap servers?
+    # Another idea is to use multiple threads like Andrey does to get data faster?
 
     try:
         # Load dataset object and metadata, but don't open the values yet
-        # NOTE: When opening HDF files, the group to be accessed must be specified with the "group=" parameter. 
-        #       E.g., for GPM IMERG, group="Grid" must be entered or an error will occur
-        # Remove the session parameter if you are just using a .netrc file to authenticate
-        ds = xr.open_mfdataset(opendap_urls, engine="pydap", session=my_session)
+        ds = xr.open_mfdataset(opendap_urls, engine="netcdf4", coords = "minimal", compat = "override", combine = "nested", concat_dim = "time")
+        # ds = xr.open_mfdataset(opendap_urls, engine="pydap", session=session)
     except OSError as e:
         print('Error', e)
         print('Please check that your .edl_token file exists and is valid, or that your username/password were entered correctly.')
         raise
 
-    # Define latitude and longitude bounds for CONUS
-    #LatMin, LatMax = 29.78140, 30.29064  # Latitude bounds
-    #LonMin, LonMax = -99.85886, -98.91769  # Longitude bounds
-
     # Subset the dataset based on lat/lon bounds, which is performed server-side
-    ds_conus = ds.sel(lat=slice(LatMin, LatMax), lon=slice(LonMin, LonMax))
+    ds_sub = ds.sel(
+        lon = slice(bbox[0], bbox[2]),
+        lat = slice(bbox[1], bbox[3])
+    )
 
-    return ds_conus
-
-    print("starting get_opendap")
-    print("this is a placeholder function pending development")
-
-    data = 1
+    return ds_sub
