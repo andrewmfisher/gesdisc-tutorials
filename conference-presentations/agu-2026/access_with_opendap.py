@@ -8,15 +8,17 @@ Environment: nasa-gesdisc-opendap
 """
 import xarray as xr
 import earthaccess
+import concurrent.futures # for multithreading with xarray.open_dataset
+
 # from pydap.net import create_session
 
 # Create virtual dataset loader function (based on Chris B's How To)
-def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar):
+def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar, nworkers = 8):
     """
     Args:
         inputs:
         session = opendap session (authentication cookies)
-
+        nworkers = number of workers for multi-threaded opendap access
     """
 
     # Create search query for Cloud OPeNDAP URLs
@@ -52,20 +54,46 @@ def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar):
 
     # May want to use open_dataset instead of open_mfdataset to avoid overloading opendap servers?
     # Another idea is to use multiple threads like Andrey does to get data faster?
+    
+    ds_lst = [] # initialize ds_lst
+    with concurrent.futures.ThreadPoolExecutor(max_workers=nworkers) as executor:
+        
+        # Submit all URLs to the background workers
+        futures = {
+            executor.submit(xr.open_dataset, url, engine="pydap", session = session, chunks = {}): url 
+            for url in opendap_urls
+        }
+        
+        # Grab them as soon as they finish downloading
+        for future in concurrent.futures.as_completed(futures):
+            failed_url = futures[future]
+            try:
+                ds = future.result()
+                ds_lst.append(ds)
+            except Exception as e:
+                print(f"Failed to open {failed_url} | Error: {e}") # lists failed URLs in case of access errors
 
-    try:
-        # Load dataset object and metadata, but don't open the values yet
-        ds = xr.open_mfdataset(opendap_urls, engine="netcdf4", coords = "minimal", compat = "override", combine = "nested", concat_dim = "time")
-        # ds = xr.open_mfdataset(opendap_urls, engine="pydap", session=session)
-    except OSError as e:
-        print('Error', e)
-        print('Please check that your .edl_token file exists and is valid, or that your username/password were entered correctly.')
-        raise
+    # concatenate to make datacube
+    if len(ds_lst) > 0:
+        print("Concatenating files...")
+        ds_concat = xr.concat(
+            ds_lst, 
+            dim='time',
+            coords='minimal', 
+            compat='override' 
+        )
+        
+        # Because the ThreadPool finishes out of order, sort it back chronologically
+        ds_concat = ds_concat.sortby('time')
 
-    # Subset the dataset based on lat/lon bounds, which is performed server-side
-    ds_sub = ds.sel(
-        lon = slice(bbox[0], bbox[2]),
-        lat = slice(bbox[1], bbox[3])
-    )
+        # Spatial subsetting
+        ds_sub = ds_concat.sel(
+            lon=slice(bbox[0], bbox[2]),
+            lat=slice(bbox[1], bbox[3])
+        )
 
-    return ds_sub
+        # Assign correct begindate and enddate attributes (they get lost in the open_dataset logic above)
+        ds_sub.attrs["BeginDate"] = str(ds_sub.time.min().dt.date.values)
+        ds_sub.attrs["EndDate"] = str(ds_sub.time.max().dt.date.values)
+
+        return ds_sub

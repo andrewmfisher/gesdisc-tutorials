@@ -8,6 +8,7 @@ import access_with_kerchunk as vds
 import access_with_opendap as opendap
 import earthaccess
 from datetime import datetime
+from pydap.net import create_session
 
 # from datetime import datetime
 
@@ -34,8 +35,9 @@ def main():
     LonMax = -93
     bbox = [LonMin, LatMin, LonMax, LatMax]
 
-    begin_dt = datetime.strptime("2024-01-01", "%Y-%m-%d")
-    end_dt = datetime.strptime("2024-01-02", "%Y-%m-%d")
+    # started 12:19 for 31 days, finished by 12:27 at latest with netcdf4 engine
+    begin_dt = datetime.strptime("2024-01-01", "%Y-%m-%d") # note: with longer time periods, opendap quickly hangs in current configuration
+    end_dt = datetime.strptime("2024-01-31", "%Y-%m-%d")
     beginyear = begin_dt.year
     endyear = end_dt.year
 
@@ -48,8 +50,8 @@ def main():
     # get bearer token for EDL authentication (once)
     auth = earthaccess.login(strategy="netrc")
     bearer_token = auth.token["access_token"]
-    # opendap uses session cookies, rather than a bearer token
-    opendap_session = earthaccess.get_requests_https_session()
+    # cloud opendap uses session cookies, rather than a bearer token
+    opendap_session = create_session(session_kwargs = {"token":bearer_token})
     
     #precip_imerg_vds = vds.get_vds_multiyear(bearer_token, shortname, Version, beginyear, endyear, bbox, subvar = "precipitation")
     #print(precip_imerg_vds) # confirm that the data have been (lazily) loaded
