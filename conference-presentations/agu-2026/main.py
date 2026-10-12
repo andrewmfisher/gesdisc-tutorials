@@ -4,57 +4,60 @@
 # 10/9/2026 ALM
 # Methods are defined in separate files
 
+import access_with_kerchunk as vds
+# import access_with_opendap as opendap
 import earthaccess
-import xarray as xr
-from access_with_kerchunk import get_vds
-from access_with_opendap import get_opendap
+
+# from datetime import datetime
+
+#from access_with_kerchunk import get_vds
+#from access_with_opendap import get_opendap
+
+# import earthaccess
+# import xarray as xr
 #from access_with_GiC import get_GiC
-from pydap.net import create_session
+# from pydap.net import create_session
+
+# inputs: subsetting parameters, spatiotemporal domain
+# outputs: data cube with the data we desired
 
 def main():
 
-    #input parameters (will stay fixed)
+    # input parameters (will stay fixed)
     ShortName = "GPM_3IMERGDF"
     Version = "07"
-    BeginDate = "2025-07-01"
-    EndDate = "2025-07-31"
-    LatMin = 29.78140
-    LatMax = 30.29064
-    LonMin = -99.85886
-    LonMax = -98.91769
+    
+    LatMin = 24
+    LatMax = 34
+    LonMin = -103
+    LonMax = -93
+    bbox = [LonMin, LatMin, LonMax, LatMax]
+
+    beginyear = 2024
+    endyear = 2025
 
     #function start statement
-    print("Starting main script for benchmarking different data access methods for {} version {} from" "{} to {} for a bounding box of ({}, {}, {}, {})".format(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax))
+    print(
+        "Starting main script for benchmarking different data access methods for {} version {} from" "{} to {} for a bounding box of ({}, {}, {}, {})".format(
+        ShortName, Version, beginyear, endyear, LatMin, LatMax, LonMin, LonMax)
+        )
 
-    return ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax
-
-if __name__ == "__main__":
-
-    ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax = main()
+    # get bearer token for EDL authentication (once)
+    auth = earthaccess.login(strategy="netrc")
+    bearer_token = auth.token["access_token"]
     
-    # Authenticate with earthaccess
+    precip_imerg_vds = vds.get_vds_multiyear(bearer_token, ShortName, Version, beginyear, endyear, bbox, subvar = "precipitation")
 
-    auth = earthaccess.login()
+    print(precip_imerg_vds) # confirm that the data have been (lazily) loaded
 
-    # Load functions from separate function files
 
-    # Call each to get data for the domain of interest
 
-    # kerchunk ----------------------------------------------------------
-
-    # Read in kerchunk files of IMERG data (one year each) and concatenate them
-    # Refine this so it can load multiple years with one function...
-    vds2010 = get_vds("https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/{}.{}/2010.parq".format(ShortName, Version), auth = auth)
-    vds2011 = get_vds("https://data.gesdisc.earthdata.nasa.gov/browse/kerchunk/GPM_L3/{}.{}/2011.parq".format(ShortName, Version), auth = auth)
-
-    vds_concat = xr.concat([vds2010, vds2011], dim="time")
-    vds_concat.attrs["BeginDate"] = str(vds_concat.time.min().dt.date.values)
-    vds_concat.attrs["EndDate"] = str(vds_concat.time.max().dt.date.values)
-    print(vds_concat)
 
     # opendap -----------------------------------------------------------
-    opendap2025July = get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax)
-    print(opendap2025July)
+    # opendap2025July = get_opendap(ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax)
+    # print(opendap2025July)
+
+    # precip_imerg_opendap = subset_opendap(begindate, enddate, bbox)
 
     # Cloud Giovanni time series ----------------------------------------
 
@@ -64,4 +67,5 @@ if __name__ == "__main__":
 
     # Plot method vs. computational requirements
 
-
+if __name__ == "__main__":
+    main()
