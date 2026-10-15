@@ -3,12 +3,13 @@ Stream data from Cloud opendap with pydap
 
 Date: 8/31/2026
 Author: Jacob Schaperow
-Last Update: JRS, Oct. 12, 2026
+Last Update: JRS, Oct. 15, 2026
 Environment: nasa-gesdisc-opendap
 """
 import xarray as xr
 import earthaccess
 import concurrent.futures # for multithreading with xarray.open_dataset
+import time # in order to add time delay between requests
 
 # from pydap.net import create_session
 
@@ -47,31 +48,32 @@ def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar, n
 
     print("created list of Opendap URLs")
 
-    #authentication using earthaccess
-    # auth = earthaccess.login()
-    # token = earthaccess.get_edl_token()['access_token']
-    # my_session = create_session(session_kwargs={"token": token})
-
-    # May want to use open_dataset instead of open_mfdataset to avoid overloading opendap servers?
-    # Another idea is to use multiple threads like Andrey does to get data faster?
-    
-    ds_lst = [] # initialize ds_lst
-    with concurrent.futures.ThreadPoolExecutor(max_workers=nworkers) as executor:
-        
-        # Submit all URLs to the background workers
-        futures = {
-            executor.submit(xr.open_dataset, url, engine="pydap", session = session, chunks = {}): url 
-            for url in opendap_urls
-        }
-        
-        # Grab them as soon as they finish downloading
-        for future in concurrent.futures.as_completed(futures):
-            failed_url = futures[future]
+    # We assume that opendap_urls are in chronological order, which they should be, since they come from earthaccess.search
+    # Helper function to open the dataset (needed to pass arguments to executor.map)
+    def fetch_dataset(url, max_retries=3):
+        # Try to open the URL up to 'max_retries' times
+        for attempt in range(max_retries):
             try:
-                ds = future.result()
-                ds_lst.append(ds)
+                return xr.open_dataset(url, engine="pydap", session=session, chunks={})
             except Exception as e:
-                print(f"Failed to open {failed_url} | Error: {e}") # lists failed URLs in case of access errors
+                print(f"Attempt {attempt + 1} failed for {url} | Error: {e}")
+                time.sleep(2) # wait before trying again
+        # If it fails max_retries times, print a final message and return None
+        print(f"All {max_retries} attempts failed for {url}. File skipped.")
+        return None
+
+    ds_lst = [] # initialize ds_lst
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+        
+        # executor.map ensures the result stays in the order of opendap_urls
+        results = executor.map(fetch_dataset, opendap_urls)
+        ds_lst = [ds for ds in results if ds is not None] # parse results and filter out failures
+
+    # At this point, ds_lst is a list of lazily-loaded xarray Datasets backed by Dask arrays
+
+    # If we have problems with out-of-order data, we can use this to sort them:
+    # Sort the list of datasets chronologically based on their ACTUAL internal time
+    # ds_lst.sort(key=lambda ds: ds.time.isel(time=0).values)
 
     # concatenate to make datacube
     if len(ds_lst) > 0:
@@ -82,18 +84,16 @@ def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar, n
             coords='minimal', 
             compat='override' 
         )
-        
-        # Because the ThreadPool finishes out of order, sort it back chronologically
-        ds_concat = ds_concat.sortby('time')
 
-        # Spatial subsetting
-        ds_sub = ds_concat.sel(
-            lon=slice(bbox[0], bbox[2]),
-            lat=slice(bbox[1], bbox[3])
-        )
+    # Spatial subsetting
+    ds_sub = ds_concat.sel(
+        lon=slice(bbox[0], bbox[2]),
+        lat=slice(bbox[1], bbox[3])
+    )
 
-        # Assign correct begindate and enddate attributes (they get lost in the open_dataset logic above)
-        ds_sub.attrs["BeginDate"] = str(ds_sub.time.min().dt.date.values)
-        ds_sub.attrs["EndDate"] = str(ds_sub.time.max().dt.date.values)
+    # Ensure datetime global attributes are set correctly
+    last_dataset = ds_lst[-1] # Grabs the last file chronologically
+    ds_sub.attrs["EndDate"] = last_dataset.attrs.get("EndDate")
+    ds_sub.attrs["EndTime"] = last_dataset.attrs.get("EndTime")    
 
-        return ds_sub
+    return ds_sub
