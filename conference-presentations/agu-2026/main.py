@@ -9,9 +9,10 @@ import access_with_opendap as opendap # streaming and subsetting
 import earthaccess
 from datetime import datetime
 from pydap.net import create_session
+from dask.distributed import Client
 
-from requests.adapters import HTTPAdapter
-import dask
+# from requests.adapters import HTTPAdapter
+# import dask
 
 # from datetime import datetime
 
@@ -87,7 +88,17 @@ def main():
     # Plot method vs. computational requirements
 
 if __name__ == "__main__":
+    
+    # Start the dask client with nworkers for parallelization
+    client = Client(
+        n_workers = 5,
+        threads_per_worker=1,
+    )
+    print(f"Dask dashboard available at: {client.dashboard_link}")
+
     main()
+
+    client.close()
 
 # Time profiling: snakeviz my_profile.prof
 # python -m cProfile -o ~/Documents/Codes/gesdisc-tutorials/conference-presentations/agu-2026/main_profile.prof ~/Documents/Codes/gesdisc-tutorials/conference-presentations/agu-2026/main.py
