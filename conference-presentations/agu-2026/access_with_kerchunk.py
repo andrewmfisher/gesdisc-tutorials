@@ -3,6 +3,7 @@ Stream IMERG data from Kerchunk virtual data stores
 
 Date: 8/27/2026
 Author: JRS
+Last Update: JRS, Oct. 12, 2026
 Environment: nasa-gesdisc-kerchunk
 """
 
@@ -10,7 +11,7 @@ import warnings
 import xarray as xr
 
 # Create virtual dataset loader function (based on Chris B's How To)
-def get_vds(parq: str, bearer_token: str, bbox, subvar, chunks: dict={}, **kwargs): #also pass in: ShortName, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax
+def get_vds(parq: str, bearer_token: str, bbox, subvar, chunks: dict={}, **kwargs):
     """
     Args:
         parq (str): The URL or path to the Kerchunk .parq file.
