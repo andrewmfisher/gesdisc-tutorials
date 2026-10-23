@@ -71,7 +71,7 @@ def main():
     # sometimes crashes randomly especially with more workers - need better error handling
     # ppt_opendap = precip_imerg_opendap.compute() # load the data into memory
 
-    # download (with opendap?)
+    # download (with opendap)
 
     # opendap -----------------------------------------------------------
     # opendap2025July = get_opendap(shortname, Version, BeginDate, EndDate, LatMin, LatMax, LonMin, LonMax)
