@@ -41,6 +41,7 @@ def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar, n
     for item in results:
         for urls in item['umm']['RelatedUrls']:  # Iterate over RelatedUrls in each request step
             if 'OPENDAP' in urls.get('Description', '').upper():  # Check if 'OPENDAP' is in the Description
+
                 # Extract OPeNDAP URL, replace 
                 url = urls['URL'].replace('https', 'dap4')
 
@@ -196,3 +197,5 @@ def get_opendap_2(session, shortname, version, BeginDate, EndDate, bbox, subvar)
     ds_sub.attrs["EndTime"] = last_dataset.attrs.get("EndTime")    
 
     return ds_sub
+
+
