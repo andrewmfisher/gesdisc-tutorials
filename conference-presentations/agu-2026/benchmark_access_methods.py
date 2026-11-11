@@ -12,8 +12,11 @@ from pydap.net import create_session
 # Changed: this benchmark uses Dask's local threaded scheduler because Pydap's
 # authenticated backend objects cannot reliably be serialized to worker processes.
 from dataclasses import dataclass
+from pathlib import Path
 import time
 import csv
+
+import dask
 
 # =========================================================================================================
 # Configuration 
@@ -32,6 +35,7 @@ class BenchmarkConfig:
     # Changed: control local Dask compute concurrency without starting distributed processes.
     nworkers_compute: int = 5
     benchmark_results_saveloc: str = "./access_benchmark_results.csv"
+    subset_output_dir: str = "./benchmark_subsets"
 
     def __post_init__(self): # bbox is handled this way bc lists are mutable objects
         if self.bbox is None:
@@ -78,21 +82,39 @@ ACCESS_METHODS = {
 # Benchmarking engine
 # =========================================================================================================
 
-def measure_execution(func, *args, num_workers=5):
-    """Executes a lazy loading function and measures metadata vs compute time."""
-    # 1. Metadata
-    t0 = time.perf_counter()
-    lazy_ds = func(*args)
-    t1 = time.perf_counter()
-    
-    # 2. Compute
-    t2 = time.perf_counter()
-    # Changed: Pydap-backed Dask graphs contain an authenticated HTTP session,
-    # so compute them in local threads instead of serializing them to processes.
-    _ = lazy_ds.compute(scheduler="threads", num_workers=num_workers)
-    t3 = time.perf_counter()
-    
-    return (t1 - t0), (t3 - t2)
+def measure_execution(func, *args, output_path=None, num_workers=5):
+    """Measure lazy loading and compute time, optionally saving the result."""
+    lazy_ds = None
+    computed_ds = None
+
+    try:
+        # 1. Lazy load and subset metadata.
+        t0 = time.perf_counter()
+        lazy_ds = func(*args)
+        lazy_load_time = time.perf_counter() - t0
+        # Analytical, uncompressed array payload implied by shapes and dtypes.
+        estimated_data_size_mib = lazy_ds.nbytes / (1024 ** 2)
+
+        # 2. Materialize the lazy data using local threads because Pydap-backed
+        # graphs contain an authenticated session that cannot be serialized.
+        t0 = time.perf_counter()
+        with dask.config.set(scheduler="threads", num_workers=num_workers):
+            computed_ds = lazy_ds.compute()
+        compute_time = time.perf_counter() - t0
+
+        # Saving is outside the compute timer and is requested only for the last
+        # trial of the longest benchmark period.
+        if output_path is not None:
+            output_path = Path(output_path)
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            computed_ds.to_netcdf(output_path)
+    finally:
+        if computed_ds is not None:
+            computed_ds.close()
+        if lazy_ds is not None:
+            lazy_ds.close()
+
+    return lazy_load_time, compute_time, estimated_data_size_mib
 
 # =========================================================================================================
 # Run benchmarking over suite of access methods
@@ -102,6 +124,7 @@ def run_benchmark_suite(config, auth, methods):
     """The generic engine that runs all methods over all durations and trials."""
     results = []
     base_dt = datetime.strptime(config.base_date, "%Y-%m-%d")
+    longest_duration = max(config.durations_days)
 
     for days in config.durations_days:
         begin_dt = base_dt
@@ -117,26 +140,50 @@ def run_benchmark_suite(config, auth, methods):
                 print(f"      Running {method_name}...")
                 
                 try:
+                    save_subset = (
+                        days == longest_duration and trial == config.num_trials
+                    )
+                    output_path = None
+                    if save_subset:
+                        output_path = (
+                            Path(config.subset_output_dir)
+                            / f"subset_{method_name.lower()}.nc"
+                        )
                     # Changed: use the configured number of local Dask compute threads.
-                    meta_time, comp_time = measure_execution(
+                    lazy_time, comp_time, estimated_size_mib = measure_execution(
                         method_func,
                         config,
                         auth,
                         begin_dt,
                         end_dt,
+                        output_path=output_path,
                         num_workers=config.nworkers_compute,
                     )
-                    print(f"      -> Meta: {meta_time:.2f}s | Compute: {comp_time:.2f}s")
+                    print(
+                        f"      -> Lazy load: {lazy_time:.2f}s | "
+                        f"Compute: {comp_time:.2f}s | "
+                        f"Estimated data size: {estimated_size_mib:.2f} MiB"
+                    )
+                    if output_path is not None:
+                        print(f"      -> Saved subset to {output_path}")
                     
                     results.append({
                         "Method": method_name, "Days": days, "Trial": trial,
-                        "Metadata_Time_s": meta_time, "Compute_Time_s": comp_time, "Status": "Success"
+                        "Lazy_Load_Time_s": lazy_time,
+                        "Compute_Time_s": comp_time,
+                        "Estimated_Data_Size_MiB": estimated_size_mib,
+                        "NetCDF_File": str(output_path) if output_path else None,
+                        "Status": "Success"
                     })
                 except Exception as e:
                     print(f"      -> {method_name} Failed: {e}")
                     results.append({
                         "Method": method_name, "Days": days, "Trial": trial,
-                        "Metadata_Time_s": None, "Compute_Time_s": None, "Status": f"Failed: {e}"
+                        "Lazy_Load_Time_s": None,
+                        "Compute_Time_s": None,
+                        "Estimated_Data_Size_MiB": None,
+                        "NetCDF_File": str(output_path) if output_path else None,
+                        "Status": f"Failed: {e}"
                     })
     return results
 
