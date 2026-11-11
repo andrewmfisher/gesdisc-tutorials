@@ -107,7 +107,7 @@ def get_opendap(session, shortname, version, BeginDate, EndDate, bbox, subvar, n
     # Ensure datetime global attributes are set correctly
     last_dataset = ds_lst[-1] # Grabs the last file chronologically
     ds_sub.attrs["EndDate"] = last_dataset.attrs.get("EndDate")
-    ds_sub.attrs["EndTime"] = last_dataset.attrs.get("EndTime")    
+    ds_sub.attrs["EndTime"] = last_dataset.attrs.get("EndTime")
 
     return ds_sub
 
@@ -180,8 +180,10 @@ def get_opendap_2(session, shortname, version, BeginDate, EndDate, bbox, subvar)
         ds_concat = xr.concat(
             ds_lst, 
             dim='time',
+            data_vars='minimal',
             coords='minimal', 
             compat='override',
+            join = 'override',
             combine_attrs='override'
         )
 

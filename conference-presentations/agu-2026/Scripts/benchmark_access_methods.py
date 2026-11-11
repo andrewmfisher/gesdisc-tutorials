@@ -29,14 +29,16 @@ class BenchmarkConfig:
     version: str = "07"
     bbox: list = None
     subvar: str = "precipitation"
-    start_dates: tuple = ("2024-01-01", "2024-01-01")
-    end_dates: tuple = ("2024-01-01", "2024-01-02")
+    start_dates: tuple = ("1998-01-01",)
+    end_dates: tuple = ("2025-09-30",)
     num_trials: int = 1 # number of trials for benchmarking (time may differ from one run to another)
     nworkers_opendap: int = 8 # number of workers for making cloud opendap requests
     nworkers_compute: int = 9 # n workers for local dask compute (loading data into memory with .compute)
+    kerchunk_http_max_attempts: int = 5 # attempts per failed Kerchunk HTTP range request
+    kerchunk_http_backoff_seconds: float = 1.0 # initial exponential-backoff delay
     max_compute_days: Optional[int] = 365 # threshold for actually calling .compute(). use None to compute ranges of any length
     save_long_kerchunk_once: bool = True # normally, no saving of netcdf file subsets. this overrides
-    save_long_opendap_once: bool = False # force compute/save of the longest OPeNDAP range on its final trial
+    save_long_opendap_once: bool = True # force compute/save of the longest OPeNDAP range on its final trial
     benchmark_results_saveloc: str = "./conference-presentations/agu-2026/Data/access_benchmark_results.csv"
     subset_output_dir: str = "./conference-presentations/agu-2026/Data" # location to save downloaded data
 
@@ -61,7 +63,9 @@ def run_kerchunk(config, auth, begin_dt, end_dt):
         begin_dt,
         end_dt,
         config.bbox,
-        subvar=config.subvar
+        subvar=config.subvar,
+        http_max_attempts=config.kerchunk_http_max_attempts,
+        http_backoff_seconds=config.kerchunk_http_backoff_seconds,
     )
 
 def run_opendap(config, auth, begin_dt, end_dt):
@@ -87,10 +91,21 @@ ACCESS_METHODS = {
 # Benchmarking engine
 # =========================================================================================================
 
+class BenchmarkExecutionError(RuntimeError):
+    """Preserve Kerchunk request counters when materialization fails."""
+
+    def __init__(self, message, http_retries=0, token_refreshes=0):
+        super().__init__(message)
+        self.http_retries = http_retries
+        self.token_refreshes = token_refreshes
+
+
 def measure_execution(func, *args, compute=True, output_path=None, num_workers=5):
     """Measure lazy loading and compute time, optionally saving the result."""
     lazy_ds = None
     computed_ds = None
+    http_retries = 0
+    token_refreshes = 0
 
     try:
         # 1. Lazy load and subset metadata.
@@ -115,13 +130,30 @@ def measure_execution(func, *args, compute=True, output_path=None, num_workers=5
             output_path = Path(output_path)
             output_path.parent.mkdir(parents=True, exist_ok=True)
             computed_ds.to_netcdf(output_path)
+        retry_stats = lazy_ds.encoding.get("kerchunk_retry_stats")
+        if retry_stats is not None:
+            http_retries, token_refreshes = retry_stats.snapshot()
+    except Exception as error:
+        if lazy_ds is not None:
+            retry_stats = lazy_ds.encoding.get("kerchunk_retry_stats")
+            if retry_stats is not None:
+                http_retries, token_refreshes = retry_stats.snapshot()
+        raise BenchmarkExecutionError(
+            str(error), http_retries, token_refreshes
+        ) from error
     finally:
         if computed_ds is not None:
             computed_ds.close()
         if lazy_ds is not None:
             lazy_ds.close()
 
-    return lazy_load_time, compute_time, estimated_data_size_mib
+    return (
+        lazy_load_time,
+        compute_time,
+        estimated_data_size_mib,
+        http_retries,
+        token_refreshes,
+    )
 
 # =========================================================================================================
 # Run benchmarking over suite of access methods
@@ -207,7 +239,13 @@ def run_benchmark_suite(config, auth, methods):
                             / f"subset_{method_name.lower()}.nc"
                         )
                     # Changed: use the configured number of local Dask compute threads.
-                    lazy_time, comp_time, estimated_size_mib = measure_execution(
+                    (
+                        lazy_time,
+                        comp_time,
+                        estimated_size_mib,
+                        http_retries,
+                        token_refreshes,
+                    ) = measure_execution(
                         method_func,
                         config,
                         auth,
@@ -231,6 +269,11 @@ def run_benchmark_suite(config, auth, methods):
                         )
                     if output_path is not None:
                         print(f"      -> Saved subset to {output_path}")
+                    if http_retries or token_refreshes:
+                        print(
+                            f"      -> HTTP retries: {http_retries} | "
+                            f"Token refreshes: {token_refreshes}"
+                        )
 
                     results.append({
                         "Method": method_name,
@@ -238,17 +281,23 @@ def run_benchmark_suite(config, auth, methods):
                         "Lazy_Load_Time_s": lazy_time,
                         "Compute_Time_s": comp_time,
                         "Estimated_Data_Size_MiB": estimated_size_mib,
+                        "HTTP_Retries": http_retries,
+                        "Token_Refreshes": token_refreshes,
                         "NetCDF_File": str(output_path) if output_path else None,
                         "Status": "Success" if should_compute else "Success (compute skipped)"
                     })
                 except Exception as e:
                     print(f"      -> {method_name} Failed: {e}")
+                    http_retries = getattr(e, "http_retries", 0)
+                    token_refreshes = getattr(e, "token_refreshes", 0)
                     results.append({
                         "Method": method_name,
                         "Days": days, "Trial": trial,
                         "Lazy_Load_Time_s": None,
                         "Compute_Time_s": None,
                         "Estimated_Data_Size_MiB": None,
+                        "HTTP_Retries": http_retries,
+                        "Token_Refreshes": token_refreshes,
                         "NetCDF_File": str(output_path) if output_path else None,
                         "Status": f"Failed: {e}"
                     })
