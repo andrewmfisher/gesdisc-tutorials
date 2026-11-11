@@ -32,14 +32,13 @@ class BenchmarkConfig:
     durations_days: tuple = (1, 7, 14) # length of time to run benchmarking trials
     num_trials: int = 1 # number of trials for benchmarking (time may differ from one run to another)
     nworkers_opendap: int = 8 # number of workers for making cloud opendap requests
-    # Changed: control local Dask compute concurrency without starting distributed processes.
-    nworkers_compute: int = 5
+    nworkers_compute: int = 5 # n workers for local dask compute (loading data into memory with .compute)
     benchmark_results_saveloc: str = "./access_benchmark_results.csv"
-    subset_output_dir: str = "./benchmark_subsets"
+    subset_output_dir: str = "./benchmark_subsets" # location to save downloaded data
 
     def __post_init__(self): # bbox is handled this way bc lists are mutable objects
         if self.bbox is None:
-            self.bbox = [-103, 24, -93, 34] # [LonMin, LatMin, LonMax, LatMax]
+            self.bbox = [-101, 29.5, -97, 32.5] # [LonMin, LatMin, LonMax, LatMax]
 
 # =========================================================================================================
 # Set up "adapters" so we can call the kerchunk and opendap access functions with the same inputs
@@ -47,8 +46,6 @@ class BenchmarkConfig:
 
 def run_kerchunk(config, auth, begin_dt, end_dt):
     """Adapter for Kerchunk streaming"""
-    # Changed: pass the full dates so the Kerchunk loader can return the exact
-    # requested interval, including intervals that cross a year boundary.
     return vds.get_vds_multiyear(
         auth['bearer_token'], 
         config.shortname, 

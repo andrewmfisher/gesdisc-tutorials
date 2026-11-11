@@ -15,6 +15,11 @@ dependencies:
   - distributed
   - matplotlib
   - cartopy
+  # HDF5 2.1 emits native error stacks when libraries probe virtual URLs or
+  # not-yet-created output paths. Keep the compatible 1.14 line until the
+  # xarray/h5py/h5netcdf stack fully supports HDF5 2.x.
+  - hdf5>=1.14,<2
+  - h5py
   - h5netcdf
   - netCDF4
   - pip
