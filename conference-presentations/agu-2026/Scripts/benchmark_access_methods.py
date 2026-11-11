@@ -30,12 +30,13 @@ class BenchmarkConfig:
     bbox: list = None
     subvar: str = "precipitation"
     start_dates: tuple = ("2024-01-01", "2024-01-01")
-    end_dates: tuple = ("2024-01-01", "2025-09-30")
+    end_dates: tuple = ("2024-01-01", "2024-01-02")
     num_trials: int = 1 # number of trials for benchmarking (time may differ from one run to another)
     nworkers_opendap: int = 8 # number of workers for making cloud opendap requests
     nworkers_compute: int = 9 # n workers for local dask compute (loading data into memory with .compute)
     max_compute_days: Optional[int] = 365 # threshold for actually calling .compute(). use None to compute ranges of any length
     save_long_kerchunk_once: bool = True # normally, no saving of netcdf file subsets. this overrides
+    save_long_opendap_once: bool = False # force compute/save of the longest OPeNDAP range on its final trial
     benchmark_results_saveloc: str = "./conference-presentations/agu-2026/Data/access_benchmark_results.csv"
     subset_output_dir: str = "./conference-presentations/agu-2026/Data" # location to save downloaded data
 
@@ -170,20 +171,35 @@ def run_benchmark_suite(config, auth, methods):
                 print(f"      Running {method_name}...")
 
                 try:
+                    force_long_compute = (
+                        (
+                            method_name == "Kerchunk"
+                            and config.save_long_kerchunk_once
+                        )
+                        or (
+                            method_name == "OPeNDAP"
+                            and config.save_long_opendap_once
+                        )
+                    ) and (
+                        range_index == longest_range_index
+                        and trial == config.num_trials
+                    )
                     should_compute = (
                         compute_range[range_index]
-                        or (
-                            config.save_long_kerchunk_once
-                            and method_name == "Kerchunk"
-                            and range_index == longest_range_index
-                            and trial == config.num_trials
-                        )
+                        or force_long_compute
                     )
-                    save_subset = (
+                    save_opendap_subset = (
+                        method_name == "OPeNDAP"
+                        and config.save_long_opendap_once
+                        and range_index == longest_range_index
+                        and trial == config.num_trials
+                    )
+                    save_kerchunk_subset = (
                         method_name == "Kerchunk"
                         and range_index == save_range_index
                         and trial == config.num_trials
                     )
+                    save_subset = save_kerchunk_subset or save_opendap_subset
                     output_path = None
                     if save_subset:
                         output_path = (

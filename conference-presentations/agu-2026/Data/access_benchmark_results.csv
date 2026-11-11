@@ -1,5 +1,5 @@
 Method,Days,Trial,Lazy_Load_Time_s,Compute_Time_s,Estimated_Data_Size_MiB,NetCDF_File,Status
-Kerchunk,1,1,10.681898416951299,2.9313985829940066,0.00496673583984375,,Success
-OPeNDAP,1,1,4.66915049997624,1.1484287080238573,0.00496673583984375,,Success
-Kerchunk,639,1,12.768724499968812,288.76362770801643,2.9303665161132812,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success
-OPeNDAP,639,1,216.58346833399264,,2.9303665161132812,,Success (compute skipped)
+Kerchunk,1,1,11.932133125000064,3.8648490000000493,0.00496673583984375,,Success
+OPeNDAP,1,1,,,,,Failed: All Cloud OPeNDAP granules failed to open
+Kerchunk,2,1,9.133320000000026,3.8788488330000064,0.009552001953125,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success
+OPeNDAP,2,1,,,,,Failed: All Cloud OPeNDAP granules failed to open
