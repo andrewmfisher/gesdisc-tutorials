@@ -121,9 +121,11 @@ def measure_execution(func, *args, compute=True, output_path=None, num_workers=5
             # Pydap-backed graphs contain an authenticated session that cannot
             # be serialized.
             t0 = time.perf_counter()
+            print("calling .compute")
             with dask.config.set(scheduler="threads", num_workers=num_workers):
                 computed_ds = lazy_ds.compute()
             compute_time = time.perf_counter() - t0
+            print("data loaded into memory")
 
         # Saving is outside the compute timer.
         if output_path is not None and computed_ds is not None:
