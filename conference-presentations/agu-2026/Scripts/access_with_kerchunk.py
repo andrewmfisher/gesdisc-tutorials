@@ -281,7 +281,8 @@ def get_vds_multiyear(
         join = 'override',
         combine_attrs='override'
     )
-
+    print("finished concatenating files")
+    
     # Changed: record the requested inclusive bounds without forcing lazy time
     # coordinates to compute during the metadata portion of the benchmark.
     vds_cube.attrs["BeginDate"] = begin_date.date().isoformat()

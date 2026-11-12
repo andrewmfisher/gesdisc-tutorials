@@ -1,9 +1,12 @@
-Method,Days,Trial,Lazy_Load_Time_s,Compute_Time_s,Estimated_Data_Size_MiB,NetCDF_File,Status
-Kerchunk,1,1,10.665338332997635,3.313155167037621,0.004966736,,Success
-OPeNDAP,1,1,5.180893249984365,1.763875457982067,0.004966736,,Success
-Kerchunk,639,1,15.92967891599983,363.3280348330154,2.9303665161132812,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success
-OPeNDAP,639,1,215.0571608329774,676.3150132090086,2.9303665161132812,conference-presentations/agu-2026/Data/subset_opendap.nc,Success
-Kerchunk,1,2,10.681898416951299,2.9313985829940066,0.004966736,,Success
-OPeNDAP,1,2,4.6691505,1.1484287080238573,0.004966736,,Success
-Kerchunk,639,2,12.768724499968812,288.76362770801643,2.9303665161132812,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success
-OPeNDAP,639,2,216.58346833399264,,2.9303665161132812,,Success (compute skipped)
+Method,Days,Trial,Lazy_Load_Time_s,Compute_Time_s,Estimated_Data_Size_MiB,NetCDF_File,Status,,
+Kerchunk,1,1,10.665338332997635,3.313155167037621,0.004966736,,Success,,
+OPeNDAP,1,1,5.180893249984365,1.763875457982067,0.004966736,,Success,,
+Kerchunk,639,1,15.92967891599983,363.3280348330154,2.9303665161132812,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success,,
+OPeNDAP,639,1,215.0571608329774,676.3150132090086,2.9303665161132812,conference-presentations/agu-2026/Data/subset_opendap.nc,Success,,
+Kerchunk,1,2,10.681898416951299,2.9313985829940066,0.004966736,,Success,,
+OPeNDAP,1,2,4.6691505,1.1484287080238573,0.004966736,,Success,,
+Kerchunk,639,2,12.768724499968812,288.76362770801643,2.9303665161132812,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success,,
+OPeNDAP,639,2,216.58346833399264,,2.9303665161132812,,Success (compute skipped),,
+Method,Days,Trial,Lazy_Load_Time_s,Compute_Time_s,Estimated_Data_Size_MiB,HTTP_Retries,Token_Refreshes,NetCDF_File,Status
+Kerchunk,10135,1,208.06955845799894,5146.168949750001,46.47205352783203,0,0,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success
+OPeNDAP,10135,1,3533.341103083001,10522.88121,46.47205352783203,0,0,conference-presentations/agu-2026/Data/subset_opendap.nc,Success
