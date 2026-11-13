@@ -1,16 +1,12 @@
 # Main script for benchmarking data access methods
 #
-# 8/31/2026 JRS
-# 10/9/2026 ALM
-# Methods are defined in separate files
+# Access methods are defined in separate files
 
 import access_with_kerchunk as vds
 import access_with_opendap as opendap
 import earthaccess
 from datetime import datetime
 from pydap.net import create_session
-# Changed: this benchmark uses Dask's local threaded scheduler because Pydap's
-# authenticated backend objects cannot reliably be serialized to worker processes.
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
@@ -29,16 +25,18 @@ class BenchmarkConfig:
     version: str = "07"
     bbox: list = None
     subvar: str = "precipitation"
-    start_dates: tuple = ("1998-01-01",)
-    end_dates: tuple = ("2025-09-30",)
-    num_trials: int = 1 # number of trials for benchmarking (time may differ from one run to another)
+    start_dates: tuple = ("1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01")
+    end_dates: tuple = ("1998-01-02","1998-01-04","1998-01-08","1998-01-16","1998-02-01")
+    # start_dates: tuple = ("1998-01-01",)
+    # end_dates: tuple = ("2025-09-30",)
+    num_trials: int = 5 # number of trials for benchmarking (time may differ from one run to another)
     nworkers_opendap: int = 8 # number of workers for making cloud opendap requests
     nworkers_compute: int = 9 # n workers for local dask compute (loading data into memory with .compute)
     kerchunk_http_max_attempts: int = 5 # attempts per failed Kerchunk HTTP range request
     kerchunk_http_backoff_seconds: float = 1.0 # initial exponential-backoff delay
     max_compute_days: Optional[int] = 365 # threshold for actually calling .compute(). use None to compute ranges of any length
-    save_long_kerchunk_once: bool = True # normally, no saving of netcdf file subsets. this overrides
-    save_long_opendap_once: bool = True # force compute/save of the longest OPeNDAP range on its final trial
+    save_long_kerchunk_once: bool = False # normally, no saving of netcdf file subsets. this overrides
+    save_long_opendap_once: bool = False # force compute/save of the longest OPeNDAP range on its final trial
     benchmark_results_saveloc: str = "./conference-presentations/agu-2026/Data/access_benchmark_results.csv"
     subset_output_dir: str = "./conference-presentations/agu-2026/Data" # location to save downloaded data
 
