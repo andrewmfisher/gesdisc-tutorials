@@ -163,7 +163,6 @@ cython_debug/
 # Downloaded data for IMERG recurrence interval project
 *.nc4
 *.hdf5
-*.csv
 *.nc
 
 .vscode/
