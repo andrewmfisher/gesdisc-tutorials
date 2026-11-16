@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional
 import time
 import csv
+import os
 
 import dask
 
@@ -25,10 +26,10 @@ class BenchmarkConfig:
     version: str = "07"
     bbox: list = None
     subvar: str = "precipitation"
-    start_dates: tuple = ("1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01")
-    end_dates: tuple = ("1998-01-02","1998-01-04","1998-01-08","1998-01-16","1998-02-01")
-    # start_dates: tuple = ("1998-01-01",)
-    # end_dates: tuple = ("2025-09-30",)
+    start_dates: tuple = ("1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01","1998-01-01")
+    end_dates: tuple = ("1998-01-02","1998-01-04","1998-01-08","1998-01-16","1998-02-01", "1998-03-05", "1998-05-08","1998-09-13","1999-05-27")
+    #start_dates: tuple = ("1998-01-01",)
+    #end_dates: tuple = ("1998-01-30",)
     num_trials: int = 5 # number of trials for benchmarking (time may differ from one run to another)
     nworkers_opendap: int = 8 # number of workers for making cloud opendap requests
     nworkers_compute: int = 9 # n workers for local dask compute (loading data into memory with .compute)
@@ -84,6 +85,19 @@ ACCESS_METHODS = {
     "Kerchunk": run_kerchunk,
     "OPeNDAP": run_opendap
 }
+
+RESULT_FIELDNAMES = (
+    "Method",
+    "Days",
+    "Trial",
+    "Lazy_Load_Time_s",
+    "Compute_Time_s",
+    "Estimated_Data_Size_MiB",
+    "HTTP_Retries",
+    "Token_Refreshes",
+    "NetCDF_File",
+    "Status",
+)
 
 # =========================================================================================================
 # Benchmarking engine
@@ -159,9 +173,10 @@ def measure_execution(func, *args, compute=True, output_path=None, num_workers=5
 # Run benchmarking over suite of access methods
 # =========================================================================================================
 
-def run_benchmark_suite(config, auth, methods):
+def run_benchmark_suite(config, auth, methods, results_filename):
     """Run all methods and trials for each configured date range."""
     results = []
+    initialize_results_file(results_filename)
     date_ranges = []
     for start_date, end_date in zip(config.start_dates, config.end_dates):
         begin_dt = datetime.strptime(start_date, "%Y-%m-%d")
@@ -202,6 +217,7 @@ def run_benchmark_suite(config, auth, methods):
             for method_name, method_func in methods.items():
                 print(f"      Running {method_name}...")
 
+                output_path = None
                 try:
                     force_long_compute = (
                         (
@@ -232,7 +248,6 @@ def run_benchmark_suite(config, auth, methods):
                         and trial == config.num_trials
                     )
                     save_subset = save_kerchunk_subset or save_opendap_subset
-                    output_path = None
                     if save_subset:
                         output_path = (
                             Path(config.subset_output_dir)
@@ -275,7 +290,7 @@ def run_benchmark_suite(config, auth, methods):
                             f"Token refreshes: {token_refreshes}"
                         )
 
-                    results.append({
+                    result = {
                         "Method": method_name,
                         "Days": days, "Trial": trial,
                         "Lazy_Load_Time_s": lazy_time,
@@ -285,12 +300,14 @@ def run_benchmark_suite(config, auth, methods):
                         "Token_Refreshes": token_refreshes,
                         "NetCDF_File": str(output_path) if output_path else None,
                         "Status": "Success" if should_compute else "Success (compute skipped)"
-                    })
+                    }
+                    results.append(result)
+                    append_result(result, results_filename)
                 except Exception as e:
                     print(f"      -> {method_name} Failed: {e}")
                     http_retries = getattr(e, "http_retries", 0)
                     token_refreshes = getattr(e, "token_refreshes", 0)
-                    results.append({
+                    result = {
                         "Method": method_name,
                         "Days": days, "Trial": trial,
                         "Lazy_Load_Time_s": None,
@@ -300,7 +317,9 @@ def run_benchmark_suite(config, auth, methods):
                         "Token_Refreshes": token_refreshes,
                         "NetCDF_File": str(output_path) if output_path else None,
                         "Status": f"Failed: {e}"
-                    })
+                    }
+                    results.append(result)
+                    append_result(result, results_filename)
     return results
 
 
@@ -308,16 +327,40 @@ def run_benchmark_suite(config, auth, methods):
 # Output handler
 # =========================================================================================================
 
-def export_results(results, filename):
-    """Writes the dictionary of results to a CSV."""
-    if not results:
-        return
-    keys = results[0].keys()
-    with open(filename, 'w', newline='') as f:
-        writer = csv.DictWriter(f, fieldnames=keys)
+def initialize_results_file(filename):
+    """Create a fresh results CSV and persist its header immediately."""
+    filename = Path(filename)
+    filename.parent.mkdir(parents=True, exist_ok=True)
+    with filename.open("w", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=RESULT_FIELDNAMES)
         writer.writeheader()
-        writer.writerows(results)
-    print(f"\nBenchmarking complete! Results saved to '{filename}'.")
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def append_result(result, filename):
+    """Append and durably flush one completed benchmark result."""
+    with Path(filename).open("a", newline="") as f:
+        writer = csv.DictWriter(f, fieldnames=RESULT_FIELDNAMES)
+        writer.writerow(result)
+        f.flush()
+        os.fsync(f.fileno())
+
+
+def format_elapsed_duration(elapsed_seconds):
+    """Format elapsed seconds as a filename-safe duration."""
+    total_seconds = round(elapsed_seconds)
+    hours, remainder = divmod(total_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02d}h{minutes:02d}m{seconds:02d}s"
+
+
+def make_results_paths(config, start_datetime):
+    """Build the in-progress results path and the final path prefix."""
+    configured_path = Path(config.benchmark_results_saveloc)
+    start_label = start_datetime.strftime("%Y%m%dT%H%M%S")
+    prefix = configured_path.parent / f"{configured_path.stem}_{start_label}"
+    return prefix.with_name(f"{prefix.name}_running.csv"), prefix
 
 # =========================================================================================================
 # Main orchestrator
@@ -340,11 +383,31 @@ def main():
         'opendap_session': opendap_session
     }
 
-    # 3. Run Benchmark Suite
-    results = run_benchmark_suite(config, auth_bundle, ACCESS_METHODS)
+    # 3. Run Benchmark Suite. Keep a recoverable, incrementally written file
+    # until the suite completes normally.
+    run_start_datetime = datetime.now().astimezone()
+    run_start_counter = time.perf_counter()
+    temporary_results_path, final_results_prefix = make_results_paths(
+        config, run_start_datetime
+    )
+    run_benchmark_suite(
+        config,
+        auth_bundle,
+        ACCESS_METHODS,
+        results_filename=temporary_results_path,
+    )
 
-    # 4. Export
-    export_results(results, filename = config.benchmark_results_saveloc)
+    # 4. Add active elapsed duration to the name after successful completion.
+    elapsed_label = format_elapsed_duration(
+        time.perf_counter() - run_start_counter
+    )
+    final_results_path = final_results_prefix.with_name(
+        f"{final_results_prefix.name}_{elapsed_label}.csv"
+    )
+    temporary_results_path.rename(final_results_path)
+    print(
+        f"\nBenchmarking complete! Results saved to '{final_results_path}'."
+    )
 
 if __name__ == "__main__":
     # Changed: do not start a distributed Client. The explicit threaded compute
