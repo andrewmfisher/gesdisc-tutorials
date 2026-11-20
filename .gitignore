@@ -161,8 +161,21 @@ cython_debug/
 .DS_Store
 
 # Downloaded data for IMERG recurrence interval project
+# Keep generated AGU analysis inputs and outputs locally, but never track them.
+conference-presentations/agu-2026/Data/
+
 *.nc4
 *.hdf5
 *.nc
+*.png
+*.jpg
+*.pptx
+*.docx
+*.pkl
+*.xlsx
+*.npz
+*.zip
+*.json
+
 
 .vscode/

@@ -1,3 +1,0 @@
-Method,Days,Trial,Lazy_Load_Time_s,Compute_Time_s,Estimated_Data_Size_MiB,HTTP_Retries,Token_Refreshes,NetCDF_File,Status
-Kerchunk,30,1,11.056890332998591,18.669205958998646,0.137939453125,0,0,conference-presentations/agu-2026/Data/subset_kerchunk.nc,Success
-OPeNDAP,30,1,16.504092125003808,35.192965666006785,0.137939453125,0,0,,Success

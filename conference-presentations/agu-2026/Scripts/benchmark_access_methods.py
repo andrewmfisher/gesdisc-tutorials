@@ -31,7 +31,7 @@ class BenchmarkConfig:
     #start_dates: tuple = ("1998-01-01",)
     #end_dates: tuple = ("1998-01-30",)
     num_trials: int = 5 # number of trials for benchmarking (time may differ from one run to another)
-    nworkers_opendap: int = 8 # number of workers for making cloud opendap requests
+    nworkers_opendap: int = 8 # number of workers for making cloud opendap requests (should use same # as nworkers compute)
     nworkers_compute: int = 9 # n workers for local dask compute (loading data into memory with .compute)
     kerchunk_http_max_attempts: int = 5 # attempts per failed Kerchunk HTTP range request
     kerchunk_http_backoff_seconds: float = 1.0 # initial exponential-backoff delay

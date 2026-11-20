@@ -4,32 +4,40 @@ channels:
 dependencies:
   - python=3.12
   - sqlite>=3.45
-  - numpy=2.4.3        
-  - pandas=2.3.3       
-  - pyarrow=23.0.1     
-  - xarray
-  - fsspec
-  - zarr
-  - aiohttp
-  - dask
-  - distributed
-  - matplotlib
-  - cartopy
-  # HDF5 2.1 emits native error stacks when libraries probe virtual URLs or
-  # not-yet-created output paths. Keep the compatible 1.14 line until the
-  # xarray/h5py/h5netcdf stack fully supports HDF5 2.x.
+
+  # Array, table, and lazy-compute stack used by the access benchmarks.
+  - numpy=2.4.3
+  - pandas=2.3.3
+  - pyarrow=23.0.1
+  - xarray=2026.7.0
+  - dask=2026.7.1
+  - distributed=2026.7.1
+
+  # Kerchunk/reference and asynchronous HTTP access.
+  - kerchunk=0.2.10
+  - fsspec=2026.7.0
+  - zarr=3.3.0
+  - aiohttp=3.14.3
+
+  # OPeNDAP comparison used by the benchmark suite.
+  - pydap=3.5.11
+
+  # Plotting and scientific-file output.
+  - matplotlib=3.11.1
+  - cartopy=0.25.0
   - hdf5>=1.14,<2
-  - h5py
-  - h5netcdf
-  - netCDF4
-  - pip
+  - h5py=3.16.0
+  - h5netcdf=1.8.2
+  - netcdf4=1.7.5
+
+  - pip=26.2.1
   - pip:
-    - earthaccess
-    - notebook
-    - ipywidgets
-    - widgetsnbextension
-    - terra_ui_components
-    - kerchunk
-    - fastparquet==2026.3.0
-    - s3fs
-    - virtualizarr
+      - earthaccess==0.18.0
+      - fastparquet==2026.3.0
+      - notebook==7.6.2
+      - ipywidgets==8.1.9
+      - widgetsnbextension==4.0.16
+      - terra-ui-components==0.0.194
+      - s3fs==2026.7.0
+      - tqdm==4.70.0
+      - virtualizarr==2.7.3
